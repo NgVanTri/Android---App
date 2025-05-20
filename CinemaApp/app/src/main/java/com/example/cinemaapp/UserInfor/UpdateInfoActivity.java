@@ -1,6 +1,7 @@
 package com.example.cinemaapp.UserInfor;
 
 import android.app.DatePickerDialog;
+import android.content.Intent;
 import android.os.Build;
 import android.os.Bundle;
 import android.widget.ArrayAdapter;
@@ -64,8 +65,21 @@ public class UpdateInfoActivity extends AppCompatActivity {
         provinceAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerProvince.setAdapter(provinceAdapter);
 
-        fetchUserInfo();
+//        fetchUserInfo();
+        Intent intent = getIntent();
+        if (intent != null) {
+            UpdateInforDTO user = (UpdateInforDTO) intent.getSerializableExtra("updateInforDTO");
+            assert user != null;
+            etEmail.setText(user.getEmail());
+            etFirstName.setText(user.getFullName());
+            ten = user.getFullName();
+            etPhone.setText(user.getTelephone()==null?"":user.getTelephone());
+            etDob.setText(String.valueOf(user.getBirthday()==null?"":user.getBirthday()));
+            etAddress.setText(user.getAddress()==null?"":user.getAddress());
 
+            setSpinnerSelection(spinnerGender, user.getGender());
+            setSpinnerSelection(spinnerProvince, user.getProvince());
+        }
 
         Button btnUpdate = findViewById(R.id.btn_update);
         btnUpdate.setOnClickListener(v -> {
@@ -74,6 +88,9 @@ public class UpdateInfoActivity extends AppCompatActivity {
             userDTO.setFullName(etFirstName.getText().toString());
             userDTO.setTelephone(etPhone.getText().toString());
             userDTO.setBirthday(etDob.getText().toString());
+            userDTO.setAddress(etAddress.getText().toString());
+            userDTO.setGender(spinnerGender.getSelectedItem().toString());
+            userDTO.setProvince(spinnerProvince.getSelectedItem().toString());
             try {
                 updateUserInfor(userDTO);
             } catch (Exception e) {
@@ -83,35 +100,35 @@ public class UpdateInfoActivity extends AppCompatActivity {
     }
 
 
-        private void fetchUserInfo() {
-            AuthAPI apiService = APIClient.getClient().create(AuthAPI.class);
-            apiService.getInfor().enqueue(new retrofit2.Callback<GeneralResponse<UpdateInforDTO>>() {
-                @Override
-                public void onResponse(Call<GeneralResponse<UpdateInforDTO>> call, Response<GeneralResponse<UpdateInforDTO>> response) {
-                    if (response.isSuccessful() && response.body() != null) {
-                        UpdateInforDTO user = response.body().getData();
-                        if (user != null) {
-                            etEmail.setText(user.getEmail());
-                            etFirstName.setText(user.getFullName());
-                            ten = user.getFullName();
-                            etPhone.setText(user.getTelephone()==null?"":user.getTelephone());
-                            etDob.setText(String.valueOf(user.getBirthday()==null?"":user.getBirthday()));
-                            etAddress.setText(user.getAddress()==null?"":user.getAddress());
+//        private void fetchUserInfo() {
+//            AuthAPI apiService = APIClient.getClient().create(AuthAPI.class);
+//            apiService.getInfor().enqueue(new retrofit2.Callback<GeneralResponse<UpdateInforDTO>>() {
+//                @Override
+//                public void onResponse(Call<GeneralResponse<UpdateInforDTO>> call, Response<GeneralResponse<UpdateInforDTO>> response) {
+//                    if (response.isSuccessful() && response.body() != null) {
+//                        UpdateInforDTO user = response.body().getData();
+//                        if (user != null) {
+//                            etEmail.setText(user.getEmail());
+//                            etFirstName.setText(user.getFullName());
+//                            ten = user.getFullName();
+//                            etPhone.setText(user.getTelephone()==null?"":user.getTelephone());
+//                            etDob.setText(String.valueOf(user.getBirthday()==null?"":user.getBirthday()));
+//                            etAddress.setText(user.getAddress()==null?"":user.getAddress());
+//
+//                            setSpinnerSelection(spinnerGender, user.getGender());
+//                            setSpinnerSelection(spinnerProvince, user.getProvince());
+//                        }
+//                    } else {
+//                        Toast.makeText(UpdateInfoActivity.this, "Lỗi khi lấy thông tin người dùng", Toast.LENGTH_SHORT).show();
+//                    }
+//                }
 
-                            setSpinnerSelection(spinnerGender, user.getGender());
-                            setSpinnerSelection(spinnerProvince, user.getProvince());
-                        }
-                    } else {
-                        Toast.makeText(UpdateInfoActivity.this, "Lỗi khi lấy thông tin người dùng", Toast.LENGTH_SHORT).show();
-                    }
-                }
-
-                @Override
-                public void onFailure(Call<GeneralResponse<UpdateInforDTO>> call, Throwable t) {
-                    Toast.makeText(UpdateInfoActivity.this, "Không thể kết nối đến máy chủ", Toast.LENGTH_SHORT).show();
-                }
-            });
-        }
+//                @Override
+//                public void onFailure(Call<GeneralResponse<UpdateInforDTO>> call, Throwable t) {
+//                    Toast.makeText(UpdateInfoActivity.this, "Không thể kết nối đến máy chủ", Toast.LENGTH_SHORT).show();
+//                }
+//            });
+//        }
 
     private void updateUserInfor(UpdateInforDTO user) {
         AuthAPI apiService = APIClient.getClient().create(AuthAPI.class);

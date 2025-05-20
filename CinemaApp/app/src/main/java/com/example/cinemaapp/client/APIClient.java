@@ -2,8 +2,17 @@ package com.example.cinemaapp.client;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.util.Log;
 
 import com.example.cinemaapp.client.MyApplication;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+
+import okhttp3.Cookie;
+import okhttp3.CookieJar;
+import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.logging.HttpLoggingInterceptor;
@@ -19,30 +28,44 @@ public class APIClient {
             HttpLoggingInterceptor logging = new HttpLoggingInterceptor();
             logging.setLevel(HttpLoggingInterceptor.Level.BODY);
 
-            // Tạo OkHttpClient với interceptor thêm Authorization header nếu có token
+            // Tạo CookieJar tùy chỉnh để quản lý cookie
+            CookieJar cookieJar = new CookieJar() {
+                private final HashMap<String, List<Cookie>> cookieStore = new HashMap<>();
+
+                @Override
+                public void saveFromResponse(HttpUrl url, List<Cookie> cookies) {
+                    cookieStore.put(url.host(), cookies);
+                }
+
+                @Override
+                public List<Cookie> loadForRequest(HttpUrl url) {
+                    List<Cookie> cookies = cookieStore.get(url.host());
+                    return cookies != null ? cookies : new ArrayList<>();
+                }
+            };
+
+            // Tạo OkHttpClient với CookieJar và interceptor
             OkHttpClient client = new OkHttpClient.Builder()
+                    .cookieJar(cookieJar) // Sử dụng CookieJar tùy chỉnh
                     .addInterceptor(chain -> {
                         Request original = chain.request();
                         Request.Builder requestBuilder = original.newBuilder();
 
-                        // Lấy token từ SharedPreferences
-                        SharedPreferences prefs = MyApplication.getAppContext()
-                                .getSharedPreferences("APP_PREFS", Context.MODE_PRIVATE);
+                        SharedPreferences prefs = MyApplication.getAppContext().getSharedPreferences("APP_PREFS", Context.MODE_PRIVATE);
                         String token = prefs.getString("jwt_token", null);
-
-                        // Gắn header nếu có token
                         if (token != null) {
                             requestBuilder.header("Authorization", "Bearer " + token);
                         }
 
-                        return chain.proceed(requestBuilder.build());
+                        Request request = requestBuilder.build();
+                        return chain.proceed(request);
                     })
                     .addInterceptor(logging)
                     .build();
 
             // Khởi tạo Retrofit với base URL và client đã cấu hình
             retrofit = new Retrofit.Builder()
-                    .baseUrl("http://192.168.1.201:8080/")
+                    .baseUrl("http://192.111.56.104:8080/")
                     .client(client)
                     .addConverterFactory(GsonConverterFactory.create())
                     .build();

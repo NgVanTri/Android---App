@@ -29,13 +29,20 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import com.bumptech.glide.Glide;
+import com.example.cinemaapp.MainActivity;
 import com.example.cinemaapp.R;
+import com.example.cinemaapp.api.InvoiceAPI;
+import com.example.cinemaapp.client.APIClient;
+import com.example.cinemaapp.dto.response.InvoiceResponse;
+import com.example.cinemaapp.factory.GeneralResponse;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
+
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
 public class ThanhToanActivity extends AppCompatActivity {
 
@@ -44,8 +51,8 @@ public class ThanhToanActivity extends AppCompatActivity {
     private TextView theaterInfoTextView;
     private TextView showtimeInfoTextView;
     private TextView seatInfoTextView;
-    private TextView ticketDetailsTextView, ticketPriceTextView; // Để hiển thị chi tiết vé
-    private TextView foodDetailsTextView, foodPriceTextView;   // Để hiển thị chi tiết đồ ăn
+    private TextView ticketDetailsTextView, ticketPriceTextView;
+    private TextView foodDetailsTextView, foodPriceTextView;
     private TextView totalAmountTextView;
     private Button completePaymentButton;
     private TextView tvTimerThanhToan;
@@ -66,16 +73,10 @@ public class ThanhToanActivity extends AppCompatActivity {
     private String tenPhim;
     private int IdPhim;
     private String imageUrl;
-    private int soLuongGhe;
-    private int tongTienVe;
-    private int tongTienDoAn = 0; // Khởi tạo là 0
-    private int tongTienThanhToan;
     private String tenRap;
     private String ngayChieu;
     private String gioChieu;
-    private String viTriGhe; // Thêm biến để nhận vị trí ghế
-
-    // Danh sách combo (nếu có)
+    private InvoiceResponse invoiceResponse;
     private ArrayList<DatDoAnActivity.Combo> danhSachCombo = new ArrayList<>();
 
     // Các biến liên quan đến TimerService
@@ -85,6 +86,7 @@ public class ThanhToanActivity extends AppCompatActivity {
 
     // Biến theo dõi trạng thái chọn phương thức thanh toán và điều khoản
     private boolean isPaymentMethodSelected = false;
+
     private void selectPayment(int radioButtonId) {
         paymentMethodsGroup.check(radioButtonId);
         isPaymentMethodSelected = true;
@@ -105,6 +107,7 @@ public class ThanhToanActivity extends AppCompatActivity {
             }
         }
     };
+
     private final ServiceConnection serviceConnection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
@@ -120,12 +123,12 @@ public class ThanhToanActivity extends AppCompatActivity {
             isServiceBound = false;
         }
     };
+
     @SuppressLint("MissingInflatedId")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_thanh_toan);
-
 
         // Ánh xạ các view
         moviePosterImageView = findViewById(R.id.movie_poster);
@@ -144,8 +147,8 @@ public class ThanhToanActivity extends AppCompatActivity {
         showtimeInfoTextView = findViewById(R.id.showtime_info);
         seatInfoTextView = findViewById(R.id.seat_info);
         totalAmountTextView = findViewById(R.id.total_amount);
-        ticketDetailsTextView = findViewById(R.id.ticket_details); // Ánh xạ TextView chi tiết vé
-        foodDetailsTextView = findViewById(R.id.food_details);   // Ánh xạ TextView chi tiết đồ ăn
+        ticketDetailsTextView = findViewById(R.id.ticket_details);
+        foodDetailsTextView = findViewById(R.id.food_details);
         ticketPriceTextView = findViewById(R.id.ticket_price);
         foodPriceTextView = findViewById(R.id.food_price);
 
@@ -154,6 +157,7 @@ public class ThanhToanActivity extends AppCompatActivity {
         paymentMomoLayout = findViewById(R.id.payment_momo_layout);
         paymentZaloPayLayout = findViewById(R.id.payment_zalopay_layout);
         paymentShopeePayLayout = findViewById(R.id.payment_shopeepay_layout);
+
         // Ban đầu vô hiệu hóa nút thanh toán
         completePaymentButton.setEnabled(false);
         completePaymentButton.setBackgroundTintList(getResources().getColorStateList(android.R.color.darker_gray));
@@ -188,86 +192,91 @@ public class ThanhToanActivity extends AppCompatActivity {
         paymentMomoRadioButton.setClickable(false);
 
         // Thiết lập OnCheckedChangeListener cho RadioGroup
-        paymentMethodsGroup.setOnCheckedChangeListener(new RadioGroup.OnCheckedChangeListener() {
-            @Override
-            public void onCheckedChanged(RadioGroup group, int checkedId) {
-                isPaymentMethodSelected = checkedId != -1;
-                updatePaymentButtonState();
-            }
+        paymentMethodsGroup.setOnCheckedChangeListener((group, checkedId) -> {
+            isPaymentMethodSelected = checkedId != -1;
+            updatePaymentButtonState();
         });
 
         // Thiết lập OnCheckedChangeListener cho CheckBox điều khoản
-        termsConditionsCheckbox.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-            @Override
-            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                updatePaymentButtonState();
-            }
+        termsConditionsCheckbox.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            updatePaymentButtonState();
         });
 
         // Lấy dữ liệu từ Intent và cập nhật UI
         Bundle extras = getIntent().getExtras();
-        Log.d("DEBUG_GHE", "← ThanhToan nhận:"
-                + " SL=" + extras.getInt("soLuongVe", -1)   // đọc key mới
-                + " | SL_alt=" + extras.getInt("soLuongGhe", -1)  // key cũ
-                + " | viTri=" + extras.getString("viTriGhe"));
-
         if (extras != null) {
             tenPhim = extras.getString("tenPhim");
             IdPhim = extras.getInt("idPhim", 0);
             imageUrl = extras.getString("imageUrl");
-            soLuongGhe = extras.getInt("soLuongVe", 0);
-            tongTienVe = extras.getInt("tongTienVe", 0);
-            tongTienDoAn = extras.getInt("tongTienDoAn", 0);
             tenRap = extras.getString("tenRap");
             ngayChieu = extras.getString("ngayChieu");
             gioChieu = extras.getString("gioChieu");
-            viTriGhe = extras.getString("viTriGhe");
-            tongTienThanhToan = extras.getInt("tongTienThanhToan", 0);// Lấy thông tin vị trí ghế
+            invoiceResponse = (InvoiceResponse) extras.getSerializable("chiTietHoaDon");
+
+//            Log.d("InvoiceResponse", "InvoiceResponse: " + invoiceResponse.toString());
 
             // Nhận danh sách combo (nếu có)
             ArrayList<DatDoAnActivity.Combo> comboList = (ArrayList<DatDoAnActivity.Combo>) extras.getSerializable("danhSachCombo");
             if (comboList != null) {
                 danhSachCombo.addAll(comboList);
-                for (DatDoAnActivity.Combo combo : danhSachCombo) {
-                    tongTienDoAn += combo.getSoLuong() * combo.getGiaCombo() - combo.getGiaCombo();
-                }
             }
 
+            // Set thông tin cơ bản
             movieTitleTextView.setText(tenPhim);
-            Glide.with(this).load(imageUrl).into(moviePosterImageView);
+            if (imageUrl != null && !imageUrl.isEmpty()) {
+                Glide.with(this).load(imageUrl).into(moviePosterImageView);
+            }
             theaterInfoTextView.setText(tenRap);
             showtimeInfoTextView.setText(String.format("%s - %s", ngayChieu, gioChieu));
-            seatInfoTextView.setText(String.format("%d vé", soLuongGhe));
-            totalAmountTextView.setText(String.format(Locale.getDefault(), "%dđ", tongTienThanhToan));
 
-            // Hiển thị chi tiết vé
-            // Hiển thị chi tiết vé
-            if (viTriGhe != null && !viTriGhe.isEmpty()) {
-                ticketDetailsTextView.setText(String.format(Locale.getDefault(), "%d vé 2D: %s", soLuongGhe, viTriGhe));
+            // Set động từ invoiceResponse
+            if (invoiceResponse != null) {
+                // Số lượng vé
+                seatInfoTextView.setText(String.format(Locale.getDefault(), "%d vé", invoiceResponse.getCountTicket() != null ? invoiceResponse.getCountTicket() : 0));
+
+                // Chi tiết vé (số lượng và vị trí ghế)
+                String seatNames = invoiceResponse.getSeatName() != null && !invoiceResponse.getSeatName().isEmpty()
+                        ? String.join(", ", invoiceResponse.getSeatName())
+                        : "";
+                ticketDetailsTextView.setText(String.format(Locale.getDefault(), "%d vé 2D: %s",
+                        invoiceResponse.getCountTicket() != null ? invoiceResponse.getCountTicket() : 0,
+                        seatNames));
+
+                // Giá vé
+                ticketPriceTextView.setText(String.format(Locale.getDefault(), "%dđ",
+                        invoiceResponse.getTicketPrice() != null ? invoiceResponse.getTicketPrice().intValue() : 0));
+
+                // Giá đồ ăn
+                foodPriceTextView.setText(String.format(Locale.getDefault(), "%dđ",
+                        invoiceResponse.getFoodPrice() != null ? invoiceResponse.getFoodPrice().intValue() : 0));
+
+                // Tổng tiền
+                totalAmountTextView.setText(String.format(Locale.getDefault(), "%dđ",
+                        invoiceResponse.getTotalPrice() != null ? invoiceResponse.getTotalPrice().intValue() : 0));
             } else {
-                ticketDetailsTextView.setText(String.format(Locale.getDefault(), "%d vé", soLuongGhe));
+                // Fallback nếu invoiceResponse null
+                seatInfoTextView.setText("0 vé");
+                ticketDetailsTextView.setText("0 vé");
+                ticketPriceTextView.setText("0đ");
+                foodPriceTextView.setText("0đ");
+                totalAmountTextView.setText("0đ");
             }
 
-// Giá vé
-            ticketPriceTextView.setText(String.format(Locale.getDefault(), "%dđ", tongTienVe));
-
-            // Hiển thị chi tiết đồ ăn (như trước)
+            // Hiển thị chi tiết đồ ăn (giữ nguyên logic từ danhSachCombo)
             StringBuilder foodDetailsBuilder = new StringBuilder();
             if (!danhSachCombo.isEmpty()) {
                 for (DatDoAnActivity.Combo combo : danhSachCombo) {
-                    foodDetailsBuilder.append(combo.getSoLuong()).append(" x ").append(combo.getTenCombo());
+                    foodDetailsBuilder.append(combo.getSoLuong()).append(" x ").append(combo.getTenCombo()).append("\n");
                 }
-                foodPriceTextView.setText(String.format(Locale.getDefault(), "%dđ", tongTienDoAn));
                 foodDetailsTextView.setText(foodDetailsBuilder.toString().trim());
             } else {
                 foodDetailsTextView.setText("Không có đồ ăn hoặc nước được chọn.");
-                foodPriceTextView.setText("0đ");
             }
-
         }
 
         // Thiết lập OnClickListener cho nút hoàn tất thanh toán
         completePaymentButton.setOnClickListener(v -> {
+
             if (termsConditionsCheckbox.isChecked() && isPaymentMethodSelected) {
                 String selectedPaymentMethod = "";
                 int checkedRadioButtonId = paymentMethodsGroup.getCheckedRadioButtonId();
@@ -280,6 +289,25 @@ public class ThanhToanActivity extends AppCompatActivity {
                 } else if (checkedRadioButtonId == R.id.payment_shopeepay) {
                     selectedPaymentMethod = "ShopeePay";
                 }
+
+                InvoiceAPI apiService = APIClient.getClient().create(InvoiceAPI.class);
+                Call<GeneralResponse<String>> call = apiService.saveInvoice();
+                call.enqueue(new Callback<GeneralResponse<String>>() {
+                    @Override
+                    public void onResponse(Call<GeneralResponse<String>> call, Response<GeneralResponse<String>> response) {
+                        if (response.isSuccessful() && "Invoice saved successfully".equals(response.body().getData())){
+                            Intent intent = new Intent(ThanhToanActivity.this, MainActivity.class);
+                            intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP); // Xóa các activity cũ và đưa MainActivity lên đầu
+                            startActivity(intent);
+                            finish();
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(Call<GeneralResponse<String>> call, Throwable t) {
+                        Toast.makeText(ThanhToanActivity.this, "Lỗi khi lưu hóa đơn: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                    }
+                });
                 Toast.makeText(ThanhToanActivity.this, "Thanh toán bằng " + selectedPaymentMethod + " hoàn tất!", Toast.LENGTH_SHORT).show();
                 // Thêm logic thanh toán thực tế dựa trên phương thức đã chọn ở đây
                 // Sau khi thanh toán thành công, bạn có thể chuyển sang màn hình xác nhận

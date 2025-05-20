@@ -1,10 +1,11 @@
 package com.example.cinemaapp.dto;
 
+import java.io.Serializable;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 
-public class UpdateInforDTO {
+public class UpdateInforDTO implements Serializable {
     private String email;
     private String fullName;
     private String telephone;

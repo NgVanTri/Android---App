@@ -39,6 +39,7 @@ dependencies {
     implementation(libs.constraintlayout)
     implementation(libs.mysql.connector.java)
     implementation(libs.logging.interceptor)
+    implementation(libs.okhttp.urlconnection)
     testImplementation(libs.junit)
     implementation(libs.glide)
     implementation(libs.picasso)

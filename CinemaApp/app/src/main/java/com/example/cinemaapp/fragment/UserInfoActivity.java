@@ -40,13 +40,14 @@ public class UserInfoActivity extends AppCompatActivity {
     ImageView reject, iv_qr_code;
     LinearLayout card_content,getCard_content;
 
+    private UpdateInforDTO updateInforDTO;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_user_info);
 
         tv_star_nguyet = findViewById(R.id.tv_star_nguyet);
-        fetchUserInfo();
         reject = findViewById(R.id.reject);
         reject.setOnClickListener(v -> {
             Intent intent = new Intent( UserInfoActivity.this,MainActivity.class);
@@ -85,13 +86,14 @@ public class UserInfoActivity extends AppCompatActivity {
                 // Navigate to the appropriate activity based on the item title
                 switch (item.getTitle()) {
                     case "Chi tiết":
+
                         startActivity(new Intent(UserInfoActivity.this, DetailsActivity.class));
                         break;
                     case "Phần thưởng":
                         startActivity(new Intent(UserInfoActivity.this, RewardsActivity.class));
                         break;
                     case "Cập nhật thông tin":
-                        startActivity(new Intent(UserInfoActivity.this, UpdateInfoActivity.class));
+                        fetchUserInfo();
                         break;
                     case "Thay đổi mật khẩu":
                         startActivity(new Intent(UserInfoActivity.this, ChangePasswordActivity.class));
@@ -135,10 +137,10 @@ public class UserInfoActivity extends AppCompatActivity {
             @Override
             public void onResponse(Call<GeneralResponse<UpdateInforDTO>> call, Response<GeneralResponse<UpdateInforDTO>> response) {
                 if (response.isSuccessful() && response.body() != null) {
-                    UpdateInforDTO user = response.body().getData();
-                    if (user != null) {
-                        tv_star_nguyet.setText(user.getFullName());
-                    }
+                    updateInforDTO = response.body().getData();
+                    Intent intent = new Intent(UserInfoActivity.this, UpdateInfoActivity.class);
+                    intent.putExtra("updateInforDTO", updateInforDTO);
+                    startActivity(intent);
                 } else {
                     Toast.makeText(UserInfoActivity.this, "Lỗi khi lấy thông tin người dùng", Toast.LENGTH_SHORT).show();
                 }
