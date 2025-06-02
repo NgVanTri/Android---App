@@ -57,7 +57,6 @@ public class MovieCardAdapter extends RecyclerView.Adapter<MovieCardAdapter.Movi
         holder.duration.setText(totalMinutes + " phút");
         holder.required_age.setText(movie.getRequiredAge() + "+");
         Glide.with(context).load(movie.getImageUrl()).into(holder.image_url);
-
         if (movie.getAvailable()) {
             holder.btnBooking.setVisibility(View.VISIBLE);
         } else {
@@ -95,7 +94,6 @@ public class MovieCardAdapter extends RecyclerView.Adapter<MovieCardAdapter.Movi
                     Toast.makeText(context, "Đã gửi id phim tới backend " + id, Toast.LENGTH_SHORT).show();
                     // 2. Mở MovieDetailActivity
                     Intent intent = new Intent(context, MovieDetailActivity.class);
-
                     intent.putExtra("MOVIE_GENRE", movieDetail.getGenre() );
                     intent.putExtra("MOVIE_DESCRIPTION", movieDetail.getDescription());
                     intent.putExtra("MOVIE_DIRECTOR", movieDetail.getDirector());

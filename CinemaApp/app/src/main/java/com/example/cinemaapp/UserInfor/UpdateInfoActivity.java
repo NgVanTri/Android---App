@@ -2,7 +2,6 @@ package com.example.cinemaapp.UserInfor;
 
 import android.app.DatePickerDialog;
 import android.content.Intent;
-import android.os.Build;
 import android.os.Bundle;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
@@ -19,12 +18,9 @@ import com.example.cinemaapp.client.APIClient;
 import com.example.cinemaapp.dto.UpdateInforDTO;
 import com.example.cinemaapp.factory.GeneralResponse;
 
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.Calendar;
+import java.util.regex.Pattern;
 
 import retrofit2.Call;
 import retrofit2.Response;
@@ -33,6 +29,7 @@ public class UpdateInfoActivity extends AppCompatActivity {
     private EditText etDob, etEmail, etLastName, etFirstName, etPhone, etAddress;
     private Spinner spinnerGender, spinnerProvince;
     public static String ten;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -65,7 +62,6 @@ public class UpdateInfoActivity extends AppCompatActivity {
         provinceAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerProvince.setAdapter(provinceAdapter);
 
-//        fetchUserInfo();
         Intent intent = getIntent();
         if (intent != null) {
             UpdateInforDTO user = (UpdateInforDTO) intent.getSerializableExtra("updateInforDTO");
@@ -73,9 +69,9 @@ public class UpdateInfoActivity extends AppCompatActivity {
             etEmail.setText(user.getEmail());
             etFirstName.setText(user.getFullName());
             ten = user.getFullName();
-            etPhone.setText(user.getTelephone()==null?"":user.getTelephone());
-            etDob.setText(String.valueOf(user.getBirthday()==null?"":user.getBirthday()));
-            etAddress.setText(user.getAddress()==null?"":user.getAddress());
+            etPhone.setText(user.getTelephone() == null ? "" : user.getTelephone());
+            etDob.setText(user.getBirthday() == null ? "" : user.getBirthday());
+            etAddress.setText(user.getAddress() == null ? "" : user.getAddress());
 
             setSpinnerSelection(spinnerGender, user.getGender());
             setSpinnerSelection(spinnerProvince, user.getProvince());
@@ -83,6 +79,8 @@ public class UpdateInfoActivity extends AppCompatActivity {
 
         Button btnUpdate = findViewById(R.id.btn_update);
         btnUpdate.setOnClickListener(v -> {
+            if (!validateInputs()) return;
+
             UpdateInforDTO userDTO = new UpdateInforDTO();
             userDTO.setEmail(etEmail.getText().toString());
             userDTO.setFullName(etFirstName.getText().toString());
@@ -91,6 +89,7 @@ public class UpdateInfoActivity extends AppCompatActivity {
             userDTO.setAddress(etAddress.getText().toString());
             userDTO.setGender(spinnerGender.getSelectedItem().toString());
             userDTO.setProvince(spinnerProvince.getSelectedItem().toString());
+
             try {
                 updateUserInfor(userDTO);
             } catch (Exception e) {
@@ -99,36 +98,40 @@ public class UpdateInfoActivity extends AppCompatActivity {
         });
     }
 
+    private boolean validateInputs() {
+        String email = etEmail.getText().toString().trim();
+        String fullName = etFirstName.getText().toString().trim();
+        String phone = etPhone.getText().toString().trim();
+        String dob = etDob.getText().toString().trim();
+        String address = etAddress.getText().toString().trim();
 
-//        private void fetchUserInfo() {
-//            AuthAPI apiService = APIClient.getClient().create(AuthAPI.class);
-//            apiService.getInfor().enqueue(new retrofit2.Callback<GeneralResponse<UpdateInforDTO>>() {
-//                @Override
-//                public void onResponse(Call<GeneralResponse<UpdateInforDTO>> call, Response<GeneralResponse<UpdateInforDTO>> response) {
-//                    if (response.isSuccessful() && response.body() != null) {
-//                        UpdateInforDTO user = response.body().getData();
-//                        if (user != null) {
-//                            etEmail.setText(user.getEmail());
-//                            etFirstName.setText(user.getFullName());
-//                            ten = user.getFullName();
-//                            etPhone.setText(user.getTelephone()==null?"":user.getTelephone());
-//                            etDob.setText(String.valueOf(user.getBirthday()==null?"":user.getBirthday()));
-//                            etAddress.setText(user.getAddress()==null?"":user.getAddress());
-//
-//                            setSpinnerSelection(spinnerGender, user.getGender());
-//                            setSpinnerSelection(spinnerProvince, user.getProvince());
-//                        }
-//                    } else {
-//                        Toast.makeText(UpdateInfoActivity.this, "Lỗi khi lấy thông tin người dùng", Toast.LENGTH_SHORT).show();
-//                    }
-//                }
+        if (fullName.isEmpty() || !Pattern.matches("^[\\p{L} ]{2,50}$", fullName)) {
+            etFirstName.setError("Tên không hợp lệ (chỉ chứa chữ cái, 2-50 ký tự)");
+            return false;
+        }
 
-//                @Override
-//                public void onFailure(Call<GeneralResponse<UpdateInforDTO>> call, Throwable t) {
-//                    Toast.makeText(UpdateInfoActivity.this, "Không thể kết nối đến máy chủ", Toast.LENGTH_SHORT).show();
-//                }
-//            });
-//        }
+        if (email.isEmpty() || !Pattern.matches("^[\\w.-]+@[\\w.-]+\\.\\w{2,}$", email)) {
+            etEmail.setError("Email không hợp lệ");
+            return false;
+        }
+
+        if (!phone.isEmpty() && !Pattern.matches("^\\d{9,11}$", phone)) {
+            etPhone.setError("Số điện thoại không hợp lệ (9-11 chữ số)");
+            return false;
+        }
+
+        if (!dob.isEmpty() && !Pattern.matches("^\\d{2}/\\d{2}/\\d{4}$", dob)) {
+            etDob.setError("Ngày sinh không hợp lệ (định dạng dd/MM/yyyy)");
+            return false;
+        }
+
+        if (!address.isEmpty() && address.length() < 3) {
+            etAddress.setError("Địa chỉ quá ngắn");
+            return false;
+        }
+
+        return true;
+    }
 
     private void updateUserInfor(UpdateInforDTO user) {
         AuthAPI apiService = APIClient.getClient().create(AuthAPI.class);
@@ -139,7 +142,7 @@ public class UpdateInfoActivity extends AppCompatActivity {
             public void onResponse(Call<GeneralResponse<String>> call, Response<GeneralResponse<String>> response) {
                 if (response.isSuccessful() && response.body() != null) {
                     Toast.makeText(UpdateInfoActivity.this, "Cập nhật thành công!", Toast.LENGTH_SHORT).show();
-                    finish(); // Quay lại màn hình trước
+                    finish();
                 } else {
                     Toast.makeText(UpdateInfoActivity.this, "Cập nhật thất bại", Toast.LENGTH_SHORT).show();
                 }

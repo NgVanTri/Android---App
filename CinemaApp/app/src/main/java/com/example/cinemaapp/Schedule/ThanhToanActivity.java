@@ -1,6 +1,9 @@
 package com.example.cinemaapp.Schedule;
 
 import android.annotation.SuppressLint;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
@@ -8,6 +11,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.graphics.Color;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.text.SpannableString;
@@ -26,6 +30,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.NotificationCompat;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import com.bumptech.glide.Glide;
@@ -86,6 +91,10 @@ public class ThanhToanActivity extends AppCompatActivity {
 
     // Biến theo dõi trạng thái chọn phương thức thanh toán và điều khoản
     private boolean isPaymentMethodSelected = false;
+
+    // Notification channel ID
+    private static final String NOTIFICATION_CHANNEL_ID = "cinema_payment_channel";
+    private static final int NOTIFICATION_ID = 1;
 
     private void selectPayment(int radioButtonId) {
         paymentMethodsGroup.check(radioButtonId);
@@ -202,6 +211,9 @@ public class ThanhToanActivity extends AppCompatActivity {
             updatePaymentButtonState();
         });
 
+        // Tạo Notification Channel cho Android 8.0 trở lên
+        createNotificationChannel();
+
         // Lấy dữ liệu từ Intent và cập nhật UI
         Bundle extras = getIntent().getExtras();
         if (extras != null) {
@@ -212,8 +224,6 @@ public class ThanhToanActivity extends AppCompatActivity {
             ngayChieu = extras.getString("ngayChieu");
             gioChieu = extras.getString("gioChieu");
             invoiceResponse = (InvoiceResponse) extras.getSerializable("chiTietHoaDon");
-
-//            Log.d("InvoiceResponse", "InvoiceResponse: " + invoiceResponse.toString());
 
             // Nhận danh sách combo (nếu có)
             ArrayList<DatDoAnActivity.Combo> comboList = (ArrayList<DatDoAnActivity.Combo>) extras.getSerializable("danhSachCombo");
@@ -276,7 +286,6 @@ public class ThanhToanActivity extends AppCompatActivity {
 
         // Thiết lập OnClickListener cho nút hoàn tất thanh toán
         completePaymentButton.setOnClickListener(v -> {
-
             if (termsConditionsCheckbox.isChecked() && isPaymentMethodSelected) {
                 String selectedPaymentMethod = "";
                 int checkedRadioButtonId = paymentMethodsGroup.getCheckedRadioButtonId();
@@ -295,9 +304,10 @@ public class ThanhToanActivity extends AppCompatActivity {
                 call.enqueue(new Callback<GeneralResponse<String>>() {
                     @Override
                     public void onResponse(Call<GeneralResponse<String>> call, Response<GeneralResponse<String>> response) {
-                        if (response.isSuccessful() && "Invoice saved successfully".equals(response.body().getData())){
+                        if (response.isSuccessful() && "Invoice saved successfully".equals(response.body().getData())) {
+                            showPaymentSuccessNotification();
                             Intent intent = new Intent(ThanhToanActivity.this, MainActivity.class);
-                            intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP); // Xóa các activity cũ và đưa MainActivity lên đầu
+                            intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
                             startActivity(intent);
                             finish();
                         }
@@ -309,8 +319,6 @@ public class ThanhToanActivity extends AppCompatActivity {
                     }
                 });
                 Toast.makeText(ThanhToanActivity.this, "Thanh toán bằng " + selectedPaymentMethod + " hoàn tất!", Toast.LENGTH_SHORT).show();
-                // Thêm logic thanh toán thực tế dựa trên phương thức đã chọn ở đây
-                // Sau khi thanh toán thành công, bạn có thể chuyển sang màn hình xác nhận
             } else {
                 if (!termsConditionsCheckbox.isChecked()) {
                     Toast.makeText(ThanhToanActivity.this, "Vui lòng đồng ý với các điều khoản.", Toast.LENGTH_SHORT).show();
@@ -328,6 +336,35 @@ public class ThanhToanActivity extends AppCompatActivity {
         LocalBroadcastManager.getInstance(this).registerReceiver(timerTickReceiver, new IntentFilter(TimerService.ACTION_TIMER_TICK));
         LocalBroadcastManager.getInstance(this).registerReceiver(timerTickReceiver, new IntentFilter(TimerService.ACTION_TIMER_FINISHED));
         btnBackThanhToan.setOnClickListener(v -> finish());
+    }
+
+    private void createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            CharSequence name = "Cinema Payment Notifications";
+            String description = "Notifications for payment confirmations";
+            int importance = NotificationManager.IMPORTANCE_DEFAULT;
+            NotificationChannel channel = new NotificationChannel(NOTIFICATION_CHANNEL_ID, name, importance);
+            channel.setDescription(description);
+            NotificationManager notificationManager = getSystemService(NotificationManager.class);
+            notificationManager.createNotificationChannel(channel);
+        }
+    }
+
+    private void showPaymentSuccessNotification() {
+        Intent intent = new Intent(this, MainActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
+                .setSmallIcon(R.drawable.ic_notification) // Thay bằng icon của bạn
+                .setContentTitle("Thanh toán thành công")
+                .setContentText("Bạn đã hoàn tất hóa đơn đặt vé. Vào lịch sử thanh toán để xem chi tiết")
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setContentIntent(pendingIntent)
+                .setAutoCancel(true);
+
+        NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        notificationManager.notify(NOTIFICATION_ID, builder.build());
     }
 
     private void updatePaymentButtonState() {

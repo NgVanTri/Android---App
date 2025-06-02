@@ -3,6 +3,7 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:name=".client.MyApplication"
@@ -36,6 +37,7 @@
         <activity android:name=".UserInfor.LogoutActivity" />
         <activity android:name=".UserInfor.LoginActivity" />
         <activity android:name=".UserInfor.RegisterActivity" />
+
         <activity
             android:name=".Schedule.LichChieuActivity"
             android:exported="false" />

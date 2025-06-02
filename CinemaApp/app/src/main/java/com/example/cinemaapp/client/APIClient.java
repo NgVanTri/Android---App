@@ -65,7 +65,7 @@ public class APIClient {
 
             // Khởi tạo Retrofit với base URL và client đã cấu hình
             retrofit = new Retrofit.Builder()
-                    .baseUrl("http://192.111.56.104:8080/")
+                    .baseUrl("http://192.168.1.15:8080/")
                     .client(client)
                     .addConverterFactory(GsonConverterFactory.create())
                     .build();
